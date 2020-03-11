@@ -29,16 +29,18 @@ namespace BowlingGame
             }
         }
 
-        private readonly Int32 maxPins = 10;
-        public int Score { get; set; }
+        private const Int32 maxPins = 10;
+        private const Int32 maxRounds = 9;
+
         public int CurrentRound { get; set; }
         
-        public readonly GameRound[] rounds = new GameRound[10];
+        public readonly GameRound[] rounds = new GameRound[maxRounds + 1];
 
         public void Roll(int pins)
         {
             if (pins < 0 || pins > maxPins)
                 throw new ArgumentException();
+
             switch (rounds[CurrentRound].CurrentRoll)
             {
                 case 1:
@@ -57,44 +59,48 @@ namespace BowlingGame
         {
             rounds[CurrentRound].ThirdRoll = pins;
         }
+
         private void FirstRoll(int pins)
         {
-            if (pins == 10)
+            if (pins == maxPins)
             {
-                GetStrike(rounds[CurrentRound]);
+                GetStrike();
+                return;
             }
-            else
-            {
-                rounds[CurrentRound].RollOne = pins;
-                rounds[CurrentRound].CurrentRoll++;
-            }
+
+            rounds[CurrentRound].RollOne = pins;
+            rounds[CurrentRound].CurrentRoll++;
         }
 
         private void SecondRoll(int pins)
         {
-            if (rounds[CurrentRound].RollOne + pins == 10)
+            if (rounds[CurrentRound].RollOne + pins == maxPins)
             {
-                rounds[CurrentRound].IsSpare = true;
-                rounds[CurrentRound].RollSecond = pins;
+                GetSpare(pins);
+                return;
+            }
 
-                if (CurrentRound == 9)
-                    rounds[CurrentRound].CurrentRoll++;
-                else
-                    CurrentRound++;
-            }
-            else
-            {
-                rounds[CurrentRound].RollSecond = pins;
-                CurrentRound++;
-            }
+            rounds[CurrentRound].RollSecond = pins;
+            CurrentRound++;
         }
-        private void GetStrike(GameRound round)
-        {
-            round.IsStrike = true;
-            round.RollOne = 10;
 
-            if (CurrentRound == 9)
-                round.CurrentRoll++;
+        private void GetSpare(int pins)
+        {
+            rounds[CurrentRound].IsSpare = true;
+            rounds[CurrentRound].RollSecond = pins;
+
+            if (CurrentRound == maxRounds)
+                rounds[CurrentRound].CurrentRoll++;
+            else
+                CurrentRound++;
+        }
+        private void GetStrike()
+        {
+            rounds[CurrentRound].IsStrike = true;
+            rounds[CurrentRound].RollOne = maxPins;
+
+            if (CurrentRound == maxRounds)
+                rounds[CurrentRound].CurrentRoll++;
             else
                 CurrentRound++;
         }
@@ -105,11 +111,11 @@ namespace BowlingGame
             {
                 if (rounds[i].IsStrike)
                 {
-                    sum += 10 + (i == 9 ? rounds[i].RollSecond : NextRollsForStrike(i + 1));
+                    sum += maxPins + (i == maxRounds ? rounds[i].RollSecond : NextRollsForStrike(i + 1));
                 }
                 else if(rounds[i].IsSpare)
                 {
-                    sum += 10 + (i == 9 ? (int)rounds[i].ThirdRoll : rounds[i + 1].RollOne);
+                    sum += maxPins + (i == maxRounds ? (int)rounds[i].ThirdRoll : rounds[i + 1].RollOne);
                 }
                 else
                 {
@@ -118,19 +124,12 @@ namespace BowlingGame
             }
 
             return sum;
-
-            /*var sum = rounds.Select(k => k.RollOne + k.RollSecond).Sum();
-            var lastRound = rounds.Last();
-            if (lastRound.ThirdRoll != null)
-                sum += (int)lastRound.ThirdRoll;
-
-            return sum;*/
         }
 
         private int NextRollsForStrike(int roundIndex)
         {
             if (rounds[roundIndex].IsStrike)
-                return 10 + (roundIndex == 9 ? rounds[roundIndex].RollSecond : rounds[roundIndex + 1].RollOne);
+                return maxPins + (roundIndex == maxRounds ? rounds[roundIndex].RollSecond : rounds[roundIndex + 1].RollOne);
 
             return rounds[roundIndex].RollOne + rounds[roundIndex].RollSecond;
         }
@@ -242,6 +241,33 @@ namespace BowlingGame
             game.Roll(6);
 
             game.GetScore().Should().Be(133);
+        }
+
+        [Test]
+        public void GameWithAllStrikes_ScoreIs290()
+        {
+            var game = new Game();
+
+            for (int i = 0; i < 11; i++)
+            {
+                game.Roll(10);
+            }
+            game.GetScore().Should().Be(290);
+        }
+
+        [Test]
+        public void GameWithAllSpares_ScoreIs150()
+        {
+            var game = new Game();
+            for (int i = 0; i < 10; i++)
+            {
+                game.Roll(5);
+                game.Roll(5);
+            }
+
+            game.Roll(5);
+
+            game.GetScore().Should().Be(150);
         }
     }
 }
