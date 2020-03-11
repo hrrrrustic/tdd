@@ -82,7 +82,11 @@ namespace BowlingGame
             }
 
             rounds[CurrentRound].RollSecond = pins;
-            CurrentRound++;
+
+            if (CurrentRound == maxRounds)
+                rounds[CurrentRound].CurrentRoll++;
+            else
+                CurrentRound++;
         }
 
         private void GetSpare(int pins)
@@ -110,9 +114,10 @@ namespace BowlingGame
             int sum = 0;
             for (int i = 0; i < rounds.Length; i++)
             {
+
                 if (rounds[i].IsStrike)
                 {
-                    sum += maxPins + (i == maxRounds ? rounds[i].RollSecond : NextRollsForStrike(i + 1));
+                    sum += maxPins + (i == maxRounds ? (rounds[i].RollSecond + (int)rounds[i].ThirdRoll) : NextRollsForStrike(i + 1));
                 }
                 else if(rounds[i].IsSpare)
                 {
@@ -147,7 +152,7 @@ namespace BowlingGame
                 .Should().Be(0);
         }
         [Test]
-        public void RollNegative_ArgumentException()
+        public void RollNegativePins_ArgumentException()
         {
             Action act = () => new Game().Roll(-1);
             act.ShouldThrow<ArgumentException>();
@@ -177,7 +182,7 @@ namespace BowlingGame
             GetRound(game, 0).IsSpare.Should().Be(true);
         }
         [Test]
-        public void TwoCommonRolls_NoSpareOrStrike()
+        public void TwoCommonRolls_RoundIsNotSpareOrStrike()
         {
             var game = new Game();
             game.Roll(8);
@@ -186,7 +191,7 @@ namespace BowlingGame
             round.Should().Be(Tuple.Create(false, false));
         }
         [Test]
-        public void RoundWithoutBonus_RollsSum()
+        public void RoundWithoutStrikeOrSpare_With8And1_RollsSumIs9()
         {
             var game = new Game();
             game.Roll(8);
@@ -194,7 +199,7 @@ namespace BowlingGame
             game.GetScore().Should().Be(9);
         }
         [Test]
-        public void LastRoundWithStrike_ThirdRollScore()
+        public void LastRound_WithStrikeAndThird_RollIs5_ThirdRollScoreIs5()
         {
             var game = new Game();
             SetCurrentRound(game, 9);
@@ -204,7 +209,7 @@ namespace BowlingGame
             GetRound(game, 9).ThirdRoll.Should().Be(5);
         }
         [Test]
-        public void GameEnd_IndexOutOfRangeException()
+        public void GameEnd_AndTryRollOneMoreTime_IndexOutOfRangeException()
         {
             var game = new Game();
             SetCurrentRound(game, 10);
@@ -248,15 +253,15 @@ namespace BowlingGame
         }
 
         [Test]
-        public void GameWithAllStrikes_ScoreIs290()
+        public void GameWithAllStrikes_ScoreIs300()
         {
             var game = new Game();
 
-            for (int i = 0; i < 11; i++)
+            for (int i = 0; i < 12; i++)
             {
                 game.Roll(10);
             }
-            game.GetScore().Should().Be(290);
+            game.GetScore().Should().Be(300);
         }
 
         [Test]
@@ -282,11 +287,16 @@ namespace BowlingGame
 
         private void SetCurrentRound(Game game, int value)
         {
-            game.GetType().GetProperties(BindingFlags.Instance | BindingFlags.NonPublic).First().SetValue(game, value);
+            game
+                .GetType()
+                .GetProperties(BindingFlags.Instance | BindingFlags.NonPublic)
+                .First()
+                .SetValue(game, value);
         }
         private GameRound GetRound(Game game, int roundIndex)
         {
-            return ((GameRound[]) game.GetType()
+            return ((GameRound[]) game
+                .GetType()
                 .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)[1]
                 .GetValue(game))[roundIndex];
         }
